@@ -1,9 +1,3 @@
-declare module '@capacitor/core' {
-  interface PluginRegistry {
-    InstagramPlugin: InstagramPluginProtocol;
-  }
-}
-
 export interface InstagramShareOptions {
   medias: string[];
   mediaType: string;

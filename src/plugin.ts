@@ -1,9 +1,8 @@
-import { Plugins } from '@capacitor/core';
-import {
-  InstagramPluginProtocol, InstagramShareOptions
-} from './definitions';
+import {registerPlugin} from '@capacitor/core';
 
-const { InstagramPlugin } = Plugins;
+import {InstagramPluginProtocol, InstagramShareOptions} from './definitions';
+
+const InstagramPlugin = registerPlugin<Instagram>('Instagram');
 
 export class Instagram implements InstagramPluginProtocol {
   shareLocalMedia(options: InstagramShareOptions): Promise<{ results: any[]; }> {

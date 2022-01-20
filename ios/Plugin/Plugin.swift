@@ -18,11 +18,15 @@ public class Instagram: CAPPlugin {
             call.error("Missing 'mediaType' argument")
             return;
         }
-        guard let target = call.getArray("target", String.self) else {
+        guard let target = call.getString("target") else {
             call.error("Missing 'target' argument")
             return;
         }
         
-        call.error("IOS Not implemented!")
+        let path = target == "feed" ? "share" : "camera"
+        let appURL = URL(string: "instagram://" + path)!
+        let application = UIApplication.shared
+        application.open(appURL)
+        
     }
 }
