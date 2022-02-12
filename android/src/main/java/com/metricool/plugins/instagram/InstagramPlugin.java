@@ -10,23 +10,23 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
 
 import com.getcapacitor.JSArray;
-import com.getcapacitor.NativePlugin;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
+import org.json.JSONException;
+
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Locale;
 
 @CapacitorPlugin(name = "Instagram")
 public class InstagramPlugin extends Plugin {
 
+    public static final String SOURCE_APPLICATION = "io.adhook";
     private static final String LOGTAG = "InstagramPlugin";
 
-    private static final String TARGET_FEED = "feed";
     private static final String TARGET_STORY = "story";
 
     @PluginMethod
@@ -58,47 +58,60 @@ public class InstagramPlugin extends Plugin {
         getBridge().saveCall(call);
 
         try {
-            boolean multipleMedia = medias.length() > 1;
-
-            // choose the right action
-            String action = "com.instagram.share.ADD_TO_" + TARGET_FEED.toUpperCase();
-            if (multipleMedia || TARGET_STORY.equalsIgnoreCase(target)) {
-                // multiple medias are only enable to share in 'stories', so 'target' parameter is discarded.
-                action = Intent.ACTION_SEND_MULTIPLE;
-                multipleMedia = true;
-            }
-
-            Intent shareIntent = new Intent(action);
-            if (mediaType.toLowerCase().contains("mp4") || mediaType.toLowerCase().contains("mov")) {
-                shareIntent.setType("video/" + mediaType);
+            Intent shareIntent;
+            if (TARGET_STORY.equalsIgnoreCase(target)) {
+                shareIntent = createStoryIntent(mediaType, medias);
             } else {
-                shareIntent.setType("image/" + mediaType);
-            }
-
-            if (multipleMedia) {
-                ArrayList<Uri> uris = new ArrayList<Uri>();
-
-                for (int i = 0; i < medias.length(); i++) {
-                    File file = new File(medias.getString(i));
-                    Uri uri = Uri.fromFile(file);
-                    uris.add(uri);
-                }
-                shareIntent.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris);
-            } else {
-                File file = new File(medias.getString(0));
-                Uri uri = Uri.fromFile(file);
-                shareIntent.putExtra(Intent.EXTRA_STREAM, uri);
+                shareIntent = createFeedIntent(mediaType, medias);
             }
 
             shareIntent.setPackage("com.instagram.android");
             shareIntent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
 
-            Log.v(LOGTAG, "Sharing '" + action + "', '" + mediaType + "', '" + medias + "'");
+            Log.v(LOGTAG, "Sharing to Instagram', '" + mediaType + "', '" + medias + "'");
             startActivityForResult(call, shareIntent, "shareResultCallback");
 
         } catch (Exception e) {
             call.reject("Internal error: " + e.getMessage());
         }
+    }
+
+
+    private Intent createStoryIntent(String mediaType, JSArray medias) throws JSONException {
+        String action = "com.instagram.share.ADD_TO_STORY";
+
+        Intent shareIntent = new Intent(action);
+        shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+        File file = new File(medias.getString(0));
+        Uri uri = getAuthorizedUriForFile(file);
+        shareIntent.setDataAndType(uri, "image/*");
+
+        return shareIntent;
+    }
+
+    private Uri getAuthorizedUriForFile(File file) {
+        AppCompatActivity activity = this.getActivity();
+
+        // Really not clean, as it depends on the package in our MainActivity program.
+        String authority = "io.adhook.fileprovider";
+
+        Uri uri = FileProvider.getUriForFile(activity, authority, file);
+        return uri;
+    }
+
+    private Intent createFeedIntent(String mediaType, JSArray medias) throws JSONException {
+        String action = "com.instagram.share.ADD_TO_FEED";
+        Intent shareIntent = new Intent(action);
+        if (mediaType.toLowerCase().contains("mp4") || mediaType.toLowerCase().contains("mov")) {
+            shareIntent.setType("video/" + mediaType);
+        } else {
+            shareIntent.setType("image/" + mediaType);
+        }
+        File file = new File(medias.getString(0));
+        Uri uri = Uri.fromFile(file);
+        shareIntent.putExtra(Intent.EXTRA_STREAM, uri);
+        return shareIntent;
     }
 
     @ActivityCallback
